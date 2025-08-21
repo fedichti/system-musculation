@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestion Salle de Musculation</title>
+<style>
+  body{margin:0;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;background:#0f172a;color:#e5e7eb;}
+  h1{text-align:center;color:#facc15;margin:20px 0;}
+  .container{max-width:900px;margin:0 auto;padding:20px;}
+  form{display:grid;grid-template-columns:1fr 1fr;gap:15px;background:#1e293b;padding:20px;border-radius:12px;}
+  input,select,button{padding:10px;border:none;border-radius:8px;font-size:14px;}
+  input,select{background:#334155;color:#f1f5f9;}
+  button{background:#2563eb;color:white;cursor:pointer;transition:0.3s;}
+  button:hover{background:#1d4ed8;}
+  table{width:100%;border-collapse:collapse;margin-top:20px;}
+  th,td{padding:10px;text-align:center;}
+  th{background:#334155;color:#facc15;}
+  tr:nth-child(even){background:#1e293b;}
+  tr:nth-child(odd){background:#0f172a;}
+  tr.fade-in{opacity:0;transform: translateY(20px);animation: fadeIn 0.5s forwards;}
+  @keyframes fadeIn{to{opacity:1; transform: translateY(0);}}
+  #cardModal,#editModal,#loginModal{position:fixed;top:0;left:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;backdrop-filter: blur(5px);background:rgba(0,0,0,0.5);z-index:1000;opacity:0;transition: opacity 0.3s ease;}
+  #cardModal.show,#editModal.show,#loginModal.show{display:flex;opacity:1;}
+  #cardContent,#editContent,#loginContent{width:380px;padding:20px;border-radius:20px;text-align:center;background:rgba(20,20,20,0.95);color:#fff;box-shadow:0 15px 35px rgba(0,0,0,0.6);position:relative;transform: scale(0.8);transition: transform 0.3s ease;}
+  #cardModal.show #cardContent,#editModal.show #editContent,#loginModal.show #loginContent{transform: scale(1);}
+  #cardContent h3,#editContent h3,#loginContent h3{margin:20px 0;color:#fff;font-size:26px;font-weight:bold;text-shadow:0 0 8px rgba(255,255,255,0.6);}
+  #cardContent h4{margin:10px 0;color:#1e90ff;font-size:18px;}
+  #cardContent p{font-style:italic;color:#e5e7eb;font-size:14px;}
+  #cardContent .date{margin-top:10px;font-size:12px;color:#ccc;}
+  #cardContent .btn-print,#cardContent .btn-close,#editContent .btn-close,#editContent button,#loginContent form button{position:absolute;top:10px;padding:6px 12px;border:none;border-radius:8px;cursor:pointer;font-size:13px;}
+  .btn-print{right:60px;background:#1e90ff;color:white;box-shadow:0 2px 6px rgba(0,0,0,0.3);}
+  .btn-print:hover{background:#2563eb;}
+  .btn-close{right:10px;background:#ef4444;color:white;box-shadow:0 2px 6px rgba(0,0,0,0.3);}
+  #searchInput,#filterPaid{margin:20px 0;padding:10px;width:100%;border-radius:8px;border:none;background:#334155;color:#f1f5f9;}
+  #editContent form,#loginContent form{display:flex;flex-direction:column;gap:12px;}
+  #editContent form input,#editContent form select,#loginContent form input{background:#334155;color:#fff;padding:10px;border-radius:8px;border:none;transition:0.2s;}
+  #editContent form input:focus,#editContent form select:focus,#loginContent form input:focus{outline:none;box-shadow:0 0 6px #1e90ff;}
+  #editContent form button,#loginContent form button{position:static;margin-top:10px;background:#16a34a;color:white;padding:10px;border-radius:8px;transition:0.3s;}
+  #editContent form button:hover,#loginContent form button:hover{background:#15803d;}
+  table button{transition: transform 0.2s ease, background 0.2s ease;}
+  table button:hover{transform: scale(1.2);filter: brightness(1.2);}
+  #cardContent.vip { position: relative; overflow: hidden; }
+  #cardContent.vip::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.8) 1%, transparent 1%) repeat;
+    background-size: 20px 20px;
+    animation: stars 5s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+  @keyframes stars { from { transform: translate(0,0) rotate(0deg);} to { transform: translate(100px,100px) rotate(360deg);} }
+  #cardContent h3, #cardContent h4, #cardContent p, #cardContent .date { position: relative; z-index: 1; }
+  #adminQrCode{margin:20px auto; display:block; background:#fff; padding:10px; border-radius:12px;}
+</style>
+</head>
+<body>
+
+<div id="loginModal">
+  <div id="loginContent">
+    <h3>🔐 Login Admin</h3>
+    <form id="loginForm">
+      <input type="text" id="loginUsername" placeholder="Nom d'utilisateur" required>
+      <input type="password" id="loginPassword" placeholder="Mot de passe" required>
+      <button type="submit">Connexion</button>
+    </form>
+  </div>
+</div>
+
+<h1>🏋️ Gestion des Abonnements</h1>
+<div class="container">
+  <input type="text" id="searchInput" placeholder="🔍 Rechercher...">
+  <select id="filterPaid">
+    <option value="all">Tous</option>
+    <option value="paid">Payés</option>
+    <option value="unpaid">Non payés</option>
+  </select>
+
+  <form id="subscriptionForm">
+    <input type="text" id="name" placeholder="Nom complet" required>
+    <input type="text" id="phone" placeholder="Téléphone" required>
+    <input type="number" id="months" placeholder="Durée (mois)" required>
+    <select id="offer" required>
+      <option value="">-- Offre --</option>
+      <option value="Basic">Basic</option>
+      <option value="Premium">Premium</option>
+      <option value="VIP">VIP</option>
+    </select>
+    <label><input type="checkbox" id="paid"> Déjà payé ?</label>
+    <button type="submit">Ajouter Abonnement</button>
+  </form>
+
+  <canvas id="adminQrCode"></canvas>
+  <p style="text-align:center;color:#facc15;">📱 Accès rapide admin : Scanne ce QR avec ton téléphone pour te connecter automatiquement</p>
+
+  <table id="membersTable">
+    <thead>
+      <tr>
+        <th>Nom</th><th>Téléphone</th><th>Durée</th><th>Offre</th><th>Prix</th><th>Payé</th><th>Date fin</th><th>Temps restant</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div id="cardModal">
+  <div id="cardContent" style="background-size:cover;background-position:center;color:white;">
+    <h3 id="cardTitle">💪 Hello</h3>
+    <h4 id="cardSubtitle">💪 Bienvenue à notre salle de musculation!</h4>
+    <p id="cardQuote">“La discipline est le pont entre tes objectifs et leur réalisation.”</p>
+    <div class="date" id="cardDate"></div>
+    <button class="btn-print" onclick="printCard()">🖨️</button>
+    <button class="btn-close" onclick="closeCard()">❌</button>
+  </div>
+</div>
+
+<div id="editModal">
+  <div id="editContent">
+    <h3>✏️ Modifier Membre</h3>
+    <form id="editForm">
+      <input type="text" id="editName" placeholder="Nom complet" required>
+      <input type="text" id="editPhone" placeholder="Téléphone" required>
+      <input type="number" id="editMonths" placeholder="Durée (mois)" required>
+      <select id="editOffer" required>
+        <option value="">-- Offre --</option>
+        <option value="Basic">Basic</option>
+        <option value="Premium">Premium</option>
+        <option value="VIP">VIP</option>
+      </select>
+      <label><input type="checkbox" id="editPaid"> Déjà payé ?</label>
+      <button type="submit">Enregistrer</button>
+    </form>
+    <button class="btn-close" onclick="closeEditModal()">❌</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script>
+// Login admin
+const loginModal=document.getElementById("loginModal");
+const loginForm=document.getElementById("loginForm");
+loginModal.classList.add("show");
+loginForm.addEventListener("submit", e=>{
+  e.preventDefault();
+  const username=document.getElementById("loginUsername").value;
+  const password=document.getElementById("loginPassword").value;
+  if(username==="admin" && password==="123456"){ loginModal.classList.remove("show"); }
+  else{ alert("Nom d'utilisateur ou mot de passe incorrect !"); }
+});
+
+// Members table
+const form=document.getElementById("subscriptionForm");
+const tableBody=document.querySelector("#membersTable tbody");
+const searchInput=document.getElementById("searchInput");
+const filterPaid=document.getElementById("filterPaid");
+
+// Price
+function getPricePerMonth(offer){
+  switch(offer){case "Basic": return 60; case "Premium": return 80; case "VIP": return 120; default: return 0;}
+}
+function getPrice(offer, months){ return getPricePerMonth(offer)*months; }
+function saveToLocalStorage(data){ localStorage.setItem("members", JSON.stringify(data)); }
+function loadFromLocalStorage(){ return JSON.parse(localStorage.getItem("members")) || []; }
+
+// Remaining time
+function formatRemainingTime(endDate){
+  const now=new Date(); let diff=endDate-now;
+  if(diff<=0) return "Expiré";
+  const days=Math.floor(diff/(1000*60*60*24));
+  diff-=days*1000*60*60*24;
+  const hours=Math.floor(diff/(1000*60*60));
+  diff-=hours*1000*60*60;
+  const minutes=Math.floor(diff/(1000*60));
+  diff-=minutes*1000*60;
+  const seconds=Math.floor(diff/1000);
+  return `${days}j ${hours}h ${minutes}m ${seconds}s`;
+}
+
+function renderTable(filter=""){
+  tableBody.innerHTML="";
+  const members=loadFromLocalStorage();
+  const paidFilter=filterPaid.value;
+  members.forEach((m,idx)=>{
+    if(!m.name.toLowerCase().includes(filter.toLowerCase()) &&
+       !m.phone.includes(filter) &&
+       !m.offer.toLowerCase().includes(filter.toLowerCase())) return;
+    if(paidFilter==="paid" && !m.paid) return;
+    if(paidFilter==="unpaid" && m.paid) return;
+    const parts=m.endDate.split('/');
+    const endDate=new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+    const tr=document.createElement("tr");
+    tr.classList.add("fade-in");
+    tr.innerHTML=`
+      <td>${m.name}</td>
+      <td>${m.phone}</td>
+      <td>${m.months} mois</td>
+      <td>${m.offer}</td>
+      <td>${getPrice(m.offer, m.months)} DT</td>
+      <td>${m.paid?"✅":"❌"}</td>
+      <td>${m.endDate}</td>
+      <td class="remainingTime" data-enddate="${endDate}">${formatRemainingTime(endDate)}</td>
+      <td>
+        <button onclick="showCard('${m.name}')">🎴</button>
+        <button onclick="openEditModal(${idx})">✏️</button>
+        <button onclick="deleteMember(${idx})">🗑️</button>
+      </td>`;
+    tableBody.appendChild(tr);
+  });
+}
+
+// Add member
+form.addEventListener("submit", e=>{
+  e.preventDefault();
+  const name=document.getElementById("name").value;
+  const phone=document.getElementById("phone").value;
+  const months=parseInt(document.getElementById("months").value,10);
+  const offer=document.getElementById("offer").value;
+  const paid=document.getElementById("paid").checked;
+  const startDate=new Date();
+  const endDate=new Date(startDate.setMonth(startDate.getMonth()+months));
+  const endDateStr=endDate.toLocaleDateString("fr-FR");
+  const newMember={name,phone,months,offer,endDate:endDateStr,paid,alerted:false};
+  const members=loadFromLocalStorage();
+  members.push(newMember);
+  saveToLocalStorage(members);
+  renderTable(searchInput.value);
+  form.reset();
+});
+
+// Update remaining times
+function updateRemainingTimes(){
+  document.querySelectorAll(".remainingTime").forEach(td=>{
+    const endDate=new Date(td.getAttribute("data-enddate"));
+    td.textContent=formatRemainingTime(endDate);
+  });
+}
+setInterval(updateRemainingTimes,1000);
+
+// Card modal
+function showCard(name){
+  const members=loadFromLocalStorage();
+  const member=members.find(m=>m.name===name);
+  const cardContent=document.getElementById("cardContent");
+  document.getElementById("cardTitle").textContent=`💪 Hello ${name}`;
+  document.getElementById("cardDate").textContent="Carte générée le "+new Date().toLocaleDateString();
+  cardContent.classList.remove("vip");
+  if(member.offer==="Basic"){
+    cardContent.style.backgroundImage="url('images/carte_basic.png')";
+    cardContent.style.color="#38bdf8";
+    cardContent.style.boxShadow="0 10px 30px rgba(56,189,248,0.6)";
+  } else if(member.offer==="Premium"){
+    cardContent.style.backgroundImage="url('images/carte_premium.png')";
+    cardContent.style.color="#facc15";
+    cardContent.style.boxShadow="0 10px 30px rgba(250,204,21,0.6)";
+  } else if(member.offer==="VIP"){
+    cardContent.style.backgroundImage="url('images/carte_vip.png')";
+    cardContent.style.color="#f87171";
+    cardContent.style.boxShadow="0 10px 30px rgba(248,113,113,0.8)";
+    cardContent.classList.add("vip");
+  }
+  document.getElementById("cardModal").classList.add("show");
+}
+function closeCard(){document.getElementById("cardModal").classList.remove("show");}
+function printCard(){
+  const title=document.getElementById("cardTitle").textContent;
+  const subtitle=document.getElementById("cardSubtitle").textContent;
+  const quote=document.getElementById("cardQuote").textContent;
+  const date=document.getElementById("cardDate").textContent;
+  const html=`<div style="width:380px;padding:20px;border-radius:20px;background:#000;color:#fff;font-family:Arial,sans-serif;text-align:center;"><h3>${title}</h3><h4>${subtitle}</h4><p>${quote}</p><div>${date}</div></div>`;
+  const win=window.open("","","width=420,height=320");
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
+}
+
+// Edit modal
+let editIndex=null;
+const editModal=document.getElementById("editModal");
+const editForm=document.getElementById("editForm");
+const editName=document.getElementById("editName");
+const editPhone=document.getElementById("editPhone");
+const editMonths=document.getElementById("editMonths");
+const editOffer=document.getElementById("editOffer");
+const editPaid=document.getElementById("editPaid");
+
+function openEditModal(idx){
+  const members=loadFromLocalStorage();
+  editIndex=idx;
+  const m=members[idx];
+  editName.value=m.name;
+  editPhone.value=m.phone;
+  editMonths.value=m.months;
+  editOffer.value=m.offer;
+  editPaid.checked=m.paid;
+  editModal.classList.add("show");
+}
+function closeEditModal(){editModal.classList.remove("show");}
+editForm.addEventListener("submit", e=>{
+  e.preventDefault();
+  const members=loadFromLocalStorage();
+  const m=members[editIndex];
+  m.name=editName.value;
+  m.phone=editPhone.value;
+  m.months=parseInt(editMonths.value,10);
+  m.offer=editOffer.value;
+  m.paid=editPaid.checked;
+  m.alerted=false;
+  const startDate=new Date();
+  const endDate=new Date(startDate.setMonth(startDate.getMonth()+m.months));
+  m.endDate=endDate.toLocaleDateString("fr-FR");
+  saveToLocalStorage(members);
+  renderTable(searchInput.value);
+  closeEditModal();
+});
+
+// Delete member
+function deleteMember(idx){
+  if(confirm("Voulez-vous vraiment supprimer ce membre ?")){
+    const members=loadFromLocalStorage();
+    members.splice(idx,1);
+    saveToLocalStorage(members);
+    renderTable(searchInput.value);
+  }
+}
+
+// Search & filter
+searchInput.addEventListener("input", e=>{ renderTable(e.target.value); });
+filterPaid.addEventListener("change", ()=>{ renderTable(searchInput.value); });
+
+// Check expired subscriptions
+function checkExpiredSubscriptions(){
+  const members=loadFromLocalStorage();
+  const today=new Date();
+  let changed=false;
+  members.forEach(m=>{
+    const parts=m.endDate.split('/');
+    const endDate=new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+    if(today>endDate && !m.paid){
+      if(!m.alerted){alert(`⚠️ L'abonnement de ${m.name} est expiré et non payé !`); m.alerted=true; changed=true;}
+    }
+  });
+  if(changed) saveToLocalStorage(members);
+  renderTable(searchInput.value);
+}
+setInterval(checkExpiredSubscriptions,10000);
+renderTable();
+
+// Generate QR code for admin auto-login
+const adminQrCode=document.getElementById("adminQrCode");
+const siteUrl="https://TONNOM.github.io/TONDEPOT/"; // <-- Remplace par ton URL GitHub Pages
+const autoLoginToken="?autologin=admin123";
+QRCode.toCanvas(adminQrCode, siteUrl+autoLoginToken, {width:200});
+</script>
+</body>
+</html>
